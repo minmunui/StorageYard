@@ -18,7 +18,7 @@ class GridCommander(gym.Env):
             "grid": gym.spaces.Box(low=0, high=1, shape=(n_row, n_col)),
         })
 
-        self.priority_interval = 1 / (self.n_row * self.n_col)
+        self.priority_interval = round(1 / (self.n_row * self.n_col), 2)
         self.n_stocks = 0
 
         self.max_steps = None
@@ -69,17 +69,19 @@ class GridCommander(gym.Env):
         }
 
     def step(self, action):
-        if self.n_steps is not None and self.n_steps > self.max_steps:
+        if self.max_steps is not None and self.n_steps > self.max_steps:
             return self.observe(), 0, True, True, {}
+        # print(f"action: {action} = {action[0]} -> {action[1]}")
         reward = 0
-        if self.grid[action[0][0][0]][action[0][0][1]] == EMPTY_CELL or self.grid[action[1][0][0]][action[1][0][1]] != EMPTY_CELL:
+        if self.grid[action[0][0]][action[0][1]] == EMPTY_CELL or self.grid[action[1][0]][action[1][1]] != EMPTY_CELL:
             reward = self.loop_penalty
-        elif not is_reachable(self.grid, action[0], action[1]):
+        elif not is_reachable(self.grid, tuple(action[0]), tuple(action[1])):
+            # print(f"not reachable: {action[0]} -> {action[1]}")
             reward = self.loop_penalty
         else:
             # 물건 이동
-            self.grid[action[1][0][0]][action[1][0][1]] = self.grid[action[0][0][0]][action[0][0][1]]
-            self.grid[action[0][0][0]][action[0][0][1]] = EMPTY_CELL
+            self.grid[action[1][0]][action[1][1]] = self.grid[action[0][0]][action[0][1]]
+            self.grid[action[0][0]][action[0][1]] = EMPTY_CELL
             reward = self.check_complete()
 
         self.n_steps += 1
@@ -88,24 +90,22 @@ class GridCommander(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         self.n_steps = 0
-        while self.n_stocks < self.init_n_stocks:
-            random_space = np.random.randint(0, self.n_row * self.n_col)
-            row = random_space // self.n_col
-            col = random_space % self.n_col
-            if self.grid[row][col] == EMPTY_CELL:
-                self.place_object(row, col, 1)
+        self.place_random_stocks(self.init_n_stocks)
 
         return self.observe(), {}
 
     def check_complete(self):
         complete_count = 0
         row = 0
+        # print(f"check complete | {self.complete_reward}")
         while row < self.n_row:
+            # print(f"{self.grid[row][self.n_col - 1]}")
             if self.grid[row][self.n_col - 1] == self.priority_interval * (complete_count + 1):
+                complete_count += 1
                 self.remove_object(row, self.n_col - 1)
                 # print(f"complete at {row}, {self.n_col - 1}, complete count: {complete_count}")
-                complete_count += 1
                 row = 0
+                continue
             row += 1
 
         for col in range(self.n_col):
@@ -113,3 +113,14 @@ class GridCommander(gym.Env):
                 if self.grid[row][col] != EMPTY_CELL:
                     self.grid[row][col] -= self.priority_interval * complete_count
         return complete_count * self.complete_reward
+
+    def place_random_stocks(self, n_stocks: int):
+        while self.n_stocks < n_stocks:
+            random_space = np.random.randint(0, self.n_row * (self.n_col-1))
+            row = random_space // (self.n_col-1)
+            col = random_space % (self.n_col-1)
+            # print(f"{random_space}, {row}, {col}")
+            if self.grid[row][col] == EMPTY_CELL:
+                self.place_object(row, col, 1)
+
+        return self.observe()

@@ -11,6 +11,8 @@ def is_reachable(grid, src, dst):
     :param dst: tuple
     :return: bool
     """
+    if type(grid) == list:
+        grid = np.array(grid)
     n_row, n_col = grid.shape
     visited = np.zeros((n_row, n_col))
     q = deque([src])
@@ -21,7 +23,7 @@ def is_reachable(grid, src, dst):
             return True
         for dr, dc in zip([0, 0, 1, -1], [1, -1, 0, 0]):
             nr, nc = r + dr, c + dc
-            if 0 <= nr < n_row and 0 <= nc < n_col and not visited[nr, nc] and grid[nr, nc] == 0:
+            if 0 <= nr < n_row and 0 <= nc < n_col and not visited[nr, nc] and (not grid[nr, nc] or grid[nr, nc] == -1):
                 q.append((nr, nc))
                 visited[nr, nc] = 1
     return False
