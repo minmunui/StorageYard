@@ -8,7 +8,7 @@ SRC_POSITION_MARKER = -1
 NO_STOCK = -1
 
 
-class GridCommander(gym.Env):
+class GridOnlyCommander(gym.Env):
 
     def __init__(self, n_row: int = 5, n_col: int = 5):
         self.grid = [[EMPTY_CELL for _ in range(n_col)] for _ in range(n_row)]
@@ -16,10 +16,7 @@ class GridCommander(gym.Env):
         self.n_col = len(self.grid[0])
 
         self.action_space = gym.spaces.MultiDiscrete([n_row, n_col])
-        self.observation_space = gym.spaces.Dict({
-            "grid": gym.spaces.Box(low=-1, high=1, shape=(n_row, n_col)),
-            "loading_stock": gym.spaces.Box(low=-1, high=1, shape=(1,)),
-        })
+        self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(1, n_row, n_col), dtype=np.float32)
 
         self.loading_priority = NO_STOCK
         self.loaded_place = None
@@ -27,7 +24,7 @@ class GridCommander(gym.Env):
         self.priority_interval = round(1 / (self.n_row * self.n_col), 2)
         self.n_stocks = 0
 
-        self.max_steps = None  # TODO 이거 수정 후 테스트
+        self.max_steps = None
         self.n_steps = 0
         self.loop_penalty = -0.1
 
@@ -38,7 +35,7 @@ class GridCommander(gym.Env):
         self.final_n_stocks = 18
 
         self.n_clear = 0
-        self.upgrade_interval = 2_000
+        self.upgrade_interval = 1_000
 
     def print_grid(self):
         for row in range(self.n_row):
@@ -47,18 +44,15 @@ class GridCommander(gym.Env):
             print()
 
     def set_grid(self, grid):
-        self.observation_space = gym.spaces.Dict({
-            "grid": gym.spaces.Box(low=-1, high=1, shape=(len(grid), len(grid[0]))),
-            "loading_stock": gym.spaces.Box(low=-1, high=1, shape=(1,)),
-        })
+        self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(1, len(grid), len(grid[0])), dtype=np.float32)
         self.grid = grid
 
     def load_stock(self, row: int, col: int) -> bool:
         if self.loading_priority != NO_STOCK:
             return False
-        if self.grid[row][col] != EMPTY_CELL and self.grid[row][col] != SRC_POSITION_MARKER:
+        if self.grid[row][col] > 0:
             self.loading_priority = self.grid[row][col]
-            self.grid[row][col] = SRC_POSITION_MARKER
+            self.grid[row][col] = -1 * self.loading_priority
             self.loaded_place = (row, col)
             return True
         return False
@@ -72,6 +66,8 @@ class GridCommander(gym.Env):
             if self.loaded_place != (row, col):
                 self.grid[self.loaded_place[0]][self.loaded_place[1]] = EMPTY_CELL
             self.loaded_place = None
+            # print("================================")
+            # self.print_grid()
             return True
         return False
 
@@ -98,17 +94,13 @@ class GridCommander(gym.Env):
         return self.complete_reward
 
     def observe(self):
-        return {
-            "grid": np.array(self.grid),
-            "loading_stock": self.loading_priority
-        }
+        return np.array([self.grid])
 
     def step(self, action: tuple) -> tuple:
         if self.max_steps is not None and self.n_steps > self.max_steps:
             return self.observe(), 0, True, True, {}
         reward = 0
         if self.loading_priority == NO_STOCK:
-            # print(f"load | {action}")
             if self.load_stock(action[0], action[1]):
                 pass
             else:
@@ -135,6 +127,7 @@ class GridCommander(gym.Env):
     def reset(self, *, seed=None, options=None):
         self.n_steps = 0
         self.n_stocks = 0
+        self.grid = [[EMPTY_CELL for _ in range(self.n_col)] for _ in range(self.n_row)]
         self.place_random_stocks(self.reset_n_stocks)
         self.loading_priority = NO_STOCK
 
