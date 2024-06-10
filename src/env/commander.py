@@ -115,8 +115,10 @@ class GridCommander(gym.Env):
                 reward = self.loop_penalty
 
         else:
-#             print(f"unload | {action}")
-            if self.unload_stock(action[0], action[1]):
+            if (action[0], action[1]) == self.loaded_place:
+                reward = self.loop_penalty
+                self.unload_stock(action[0], action[1])
+            elif self.unload_stock(action[0], action[1]):
                 reward = self.check_complete()
             else:
                 reward = self.loop_penalty
