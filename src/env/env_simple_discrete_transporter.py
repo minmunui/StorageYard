@@ -46,17 +46,17 @@ class SimpleTransporter(gym.Env):
         self.just_loaded: bool = False
 
         self.n_steps: int = 0
-        self.max_steps: int = 1_000_000
+        self.max_steps: int = 2000
         self.n_stocks: int = 0
 
         self.loop_penalty: float = 0.0
         self.complete_reward: float = 1
 
-        self.init_n_stocks: float = 2
-        self.max_n_stocks: float = 20
+        self.init_n_stocks: int = 6
+        self.max_n_stocks: int = n_row * (n_col-1)
         self.n_clear: int = 0
 
-        self.upgrade_interval: int = 1000
+        self.upgrade_interval: int = 500
 
     def clear_grid(self):
         self.grid = np.array([[EMPTY_CELL for _ in range(self.n_col)] for _ in range(self.n_row)])
@@ -121,6 +121,9 @@ class SimpleTransporter(gym.Env):
         elif self.grid[self.current_position] != EMPTY_CELL:
             self.is_load = True
 
+        elif self.grid[self.current_position] == EMPTY_CELL:
+            return self.loop_penalty
+
         if self.just_loaded:
             return self.loop_penalty
         return 0
@@ -145,8 +148,7 @@ class SimpleTransporter(gym.Env):
         reward = 0
 
         # 화물 밑에서는 다른 화물 밑으로 이동할 수 없다.
-        if (self.is_stock(self.current_position[0], self.current_position[1]) and
-                self.is_stock(next_position[0], next_position[1])):
+        if (self.is_load and self.is_stock(next_position[0], next_position[1])):
             return self.loop_penalty
 
         # if next position is same as current position, return penalty
@@ -175,6 +177,9 @@ class SimpleTransporter(gym.Env):
 
     def step(self, action):
         self.n_steps += 1
+        if self.n_steps > 1000:
+            if self.n_steps % 1000 == 0:
+                self.print_state()
         if self.n_steps >= self.max_steps:
             return self.observe(), 0, True, True, {}
         if action == 4:
