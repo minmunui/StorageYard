@@ -47,7 +47,7 @@ class StorageYard(gym.Env):
         self.loop_penalty = -0.0
         self.complete_reward = 1
 
-        self.init_n_stocks = 10
+        self.init_n_stocks = 5
 
     def set_grid(self, grid):
         self.grid = grid
