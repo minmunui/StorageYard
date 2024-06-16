@@ -23,7 +23,7 @@ class SimpleTransporter(gym.Env):
         4: (0, 0)  # put/unput
     }
 
-    def __init__(self, n_row: int = 5, n_col: int = 5):
+    def __init__(self, n_row: int = 4, n_col: int = 4, max_steps: int = 2000, loop_penalty: float = 0.0, init_n_stocks=10):
         self.grid = np.array([[EMPTY_CELL for _ in range(n_col)] for _ in range(n_row)])
 
         self.action_space = gym.spaces.Discrete(5)
@@ -31,7 +31,7 @@ class SimpleTransporter(gym.Env):
             'position': gym.spaces.MultiDiscrete([n_row, n_col]),  # agent position
             'target': gym.spaces.MultiDiscrete([n_row, n_col]),  # target position
             'grid': gym.spaces.MultiBinary([n_row, n_col]),  # grid true if stock, false if empty
-            'is_load': gym.spaces.MultiBinary([1]),  # is loaded
+            'is_load': gym.spaces.MultiBinary(1),  # is loaded
         })
 
         self.target_position: tuple = (-1, -1)
@@ -52,7 +52,7 @@ class SimpleTransporter(gym.Env):
         self.loop_penalty: float = 0.0
         self.complete_reward: float = 1
 
-        self.init_n_stocks: int = 6
+        self.init_n_stocks: int = init_n_stocks
         self.max_n_stocks: int = n_row * (n_col-1)
         self.n_clear: int = 0
 
@@ -145,10 +145,9 @@ class SimpleTransporter(gym.Env):
         next_row = min(max(self.current_position[0] + self.ACTION[direction][0], 0), self.n_row - 1)
         next_col = min(max(self.current_position[1] + self.ACTION[direction][1], 0), self.n_col - 1)
         next_position = (next_row, next_col)
-        reward = 0
 
         # 화물 밑에서는 다른 화물 밑으로 이동할 수 없다.
-        if (self.is_load and self.is_stock(next_position[0], next_position[1])):
+        if self.is_load and self.is_stock(next_position[0], next_position[1]):
             return self.loop_penalty
 
         # if next position is same as current position, return penalty
@@ -160,9 +159,9 @@ class SimpleTransporter(gym.Env):
             self.grid[next_position] = self.grid[self.current_position]
             self.grid[self.current_position] = EMPTY_CELL
 
-        # 옮긴 화물이 타겟이라면, 타겟을 이동
-        if self.current_position == self.target_position:
-            self.target_position = next_position
+            # 옮긴 화물이 타겟이라면, 타겟을 이동
+            if self.current_position == self.target_position:
+                self.target_position = next_position
 
         self.current_position = next_position
         return 0
